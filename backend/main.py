@@ -5,14 +5,15 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.chains import RetrievalQA  # This is the line you needed
+from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 
+# Load API keys from .env (locally) or Environment Variables (on Render)
 load_dotenv()
 
 app = FastAPI()
 
-# FIXED CORS: This allows your Vercel frontend to talk to this Render backend
+# Enable CORS so the Vercel frontend can talk to this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,7 +44,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
         vector_db = FAISS.from_documents(chunks, embeddings)
         
-        # 4. Cleanup
+        # 4. Cleanup temporary file
         os.remove(temp_path)
         return {"message": f"Successfully processed {file.filename}"}
     except Exception as e:
@@ -56,14 +57,24 @@ async def chat(query: str = Form(...)):
         return {"response": "Please upload a document first!"}
     
     try:
-        # Use Gemini 1.5 Flash for fast responses
+        # Initialize Gemini LLM
         llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
         
-        # Create the QA chain
+        # Create the QA chain using the vector database
         qa_chain = RetrievalQA.from_chain_type(
             llm=llm, 
             chain_type="stuff", 
             retriever=vector_db.as_retriever()
         )
         
+        # Execute the query
         result = qa_chain.invoke(query)
+        return {"response": result["result"]}
+    except Exception as e:
+        # This is the 'except' block that was missing or broken
+        return {"response": f"AI Error: {str(e)}"}
+
+if __name__ == "__main__":
+    import uvicorn
+    # Port 10000 is required for Render
+    uvicorn.run(app, host="0.0.0.0", port=10000)
