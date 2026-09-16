@@ -1,0 +1,40 @@
+# Secrets and Environment Variables
+.env
+backend/.env
+frontend/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+# FAISS local index files
+faiss_index/
+# Temporary uploaded files
+backend/temp_*
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.essentials
+.cache/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
