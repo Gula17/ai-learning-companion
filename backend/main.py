@@ -5,7 +5,6 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -49,15 +48,29 @@ async def chat(query: str = Form(...)):
     if vector_db is None:
         return {"response": "Please upload a document first!"}
     
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm, 
-        chain_type="stuff", 
-        retriever=vector_db.as_retriever()
-    )
+    # NEW STABLE METHOD (Manual Retrieval)
+    # 1. Search for the most relevant sections in the PDF
+    docs = vector_db.similarity_search(query, k=3)
+    context = "\n".join([d.page_content for d in docs])
     
-    result = qa_chain.invoke(query)
-    return {"response": result["result"]}
+    # 2. Send the context and question to Gemini
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
+    
+    prompt = f"""
+    You are a helpful AI Study Companion for college students.
+    Use the following pieces of retrieved context from the uploaded study material to answer the question.
+    If the answer is not in the context, use your general knowledge but mention that it wasn't in the notes.
+    
+    Context:
+    {context}
+    
+    Question: {query}
+    
+    Answer:
+    """
+    
+    result = llm.invoke(prompt)
+    return {"response": result.content}
 
 if __name__ == "__main__":
     import uvicorn
